@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bảng Điều Khiển Tiêu Thụ Điện</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<style>
+  .chart-container { position: relative; height: 400px; width: 100%; }
+  .device-card { transition: all 0.3s ease; }
+  .device-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+  .sidebar { width: 280px; min-height: 100vh; position: fixed; }
+  .main-content { margin-left: 280px; min-height: 100vh; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; } /* fix scroll ngang */
+  th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; word-wrap: break-word; overflow: hidden; text-overflow: ellipsis; }
+  th { background-color: #f9fafb; font-weight: 600; }
+</style>
+</head>
+<body class="bg-gray-50">
+<div class="flex">
+  <!-- Sidebar -->
+  <div class="sidebar bg-blue-900 text-white p-6">
+    <h1 class="text-2xl font-bold flex items-center mb-4">
+      <i class="fas fa-database mr-3 text-yellow-400"></i>SQL Energy Monitor
+    </h1>
+    <p class="text-blue-200 text-sm mb-4">Dữ liệu từ [ESP32Data].[dbo].[Data]</p>
+    <nav class="space-y-2">
+      <a href="#dashboard" class="block py-2 px-4 rounded-lg bg-blue-800 hover:bg-blue-700 transition-colors">Bảng Điều Khiển</a>
+      <a href="#devices" class="block py-2 px-4 rounded-lg hover:bg-blue-800 transition-colors">Quản Lý Thiết Bị</a>
+      <a href="#data-table" class="block py-2 px-4 rounded-lg hover:bg-blue-800 transition-colors">Dữ Liệu SQL</a>
+      <a href="#analytics" class="block py-2 px-4 rounded-lg hover:bg-blue-800 transition-colors">Phân Tích</a>
+    </nav>
+    <div class="mt-8 pt-8 border-t border-blue-700">
+      <div class="bg-blue-800 p-4 rounded-lg">
+        <h3 class="font-semibold text-blue-200">Tổng Số Bản Ghi</h3>
+        <p class="text-2xl font-bold text-white" id="total-records">0</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content flex-1 p-8">
+    <!-- Header -->
+    <div class="bg-white rounded-xl shadow-sm p-6 mb-8 flex justify-between items-center">
+      <div>
+        <h2 class="text-2xl font-bold text-gray-800">Dữ liệu từ SQL Server</h2>
+        <p class="text-gray-600">Dữ liệu thời gian thực từ bảng [ESP32Data].[dbo].[Data]</p>
+      </div>
+      <div class="flex items-center space-x-4">
+        <button onclick="refreshData()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+          <i class="fas fa-sync-alt mr-2"></i>Làm Mới
+        </button>
+        <select id="displayTime" class="bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:ring-2 focus:ring-blue-500 focus:border-transparent" onchange="updateCharts(true)">
+          <option value="5m">5 phút</option>
+          <option value="10m">10 phút</option>
+          <option value="15m">15 phút</option>
+          <option value="30m">30 phút</option>
+          <option value="1H">1 giờ</option>
+          <option value="3H">3 giờ</option>
+          <option value="6H">6 giờ</option>
+          <option value="12H">12 giờ</option>
+          <option value="24H">24 giờ</option>
+          <option value="7d">7 ngày</option>
+          <option value="30d">30 ngày</option>
+          <option value="all" selected>Tất cả</option>
+        </select>
+
+        <select id="refreshInterval" class="bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:ring-2 focus:ring-blue-500 focus:border-transparent" onchange="setAutoRefresh()">
+          <option value="5000">5s</option>
+          <option value="10000">10s</option>
+          <option value="15000">15s</option>
+          <option value="60000">1p</option>
+          <option value="300000">5p</option>
+          <option value="600000">10p</option>
+          <option value="900000">15p</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div class="bg-white rounded-xl shadow-sm p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-gray-600 text-sm">Tổng Thiết Bị</p>
+            <p class="text-2xl font-bold text-gray-800" id="total-devices">0</p>
+          </div>
+          <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+            <i class="fas fa-microchip text-blue-600 text-xl"></i>
+          </div>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl shadow-sm p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-gray-600 text-sm">Công Suất Trung Bình</p>
+            <p class="text-2xl font-bold text-gray-800" id="avg-power">0W</p>
+          </div>
+          <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+            <i class="fas fa-bolt text-green-600 text-xl"></i>
+          </div>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl shadow-sm p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-gray-600 text-sm">Điện Áp Trung Bình</p>
+            <p class="text-2xl font-bold text-gray-800" id="avg-voltage">0V</p>
+          </div>
+          <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+            <i class="fas fa-bolt text-purple-600 text-xl"></i>
+          </div>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl shadow-sm p-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-gray-600 text-sm">Dòng Điện TB</p>
+            <p class="text-2xl font-bold text-gray-800" id="avg-current">0A</p>
+          </div>
+          <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+            <i class="fas fa-bolt text-orange-600 text-xl"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Charts -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div class="bg-white rounded-xl shadow-sm p-6">
+        <h3 class="text-xl font-semibold text-gray-800 mb-6">Biểu Đồ Công Suất Theo Thời Gian</h3>
+        <div class="chart-container">
+          <canvas id="powerChart"></canvas>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl shadow-sm p-6">
+        <h3 class="text-xl font-semibold text-gray-800 mb-6">Biểu Đồ Điện Áp & Dòng Điện</h3>
+        <div class="chart-container">
+          <canvas id="voltageCurrentChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Data Table -->
+    <div id="data-table" class="bg-white rounded-xl shadow-sm p-6 mb-8">
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-xl font-semibold text-gray-800">Dữ Liệu SQL</h3>
+        <div class="flex items-center space-x-2">
+          <input type="text" id="search-input" placeholder="Tìm kiếm..." class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
+          <button onclick="filterData()" class="bg-blue-600 text-white px-3 py-2 rounded-lg"><i class="fas fa-search"></i></button>
+        </div>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Device ID</th>
+              <th>Label</th>
+              <th>Voltage (V)</th>
+              <th>Current (A)</th>
+              <th>Power (W)</th>
+              <th>Timestamp</th>
+              <th>Status</th>
+              <th>Label Pred</th>
+              <th>Power Pred</th>
+              <th>Anomaly</th>
+            </tr>
+          </thead>
+          <tbody id="data-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let sqlData = [];
+let powerChart, voltageCurrentChart;
+let autoRefreshTimer = null;
+const chartPaddingLeft = 50;
+
+// Fetch dữ liệu
+async function fetchData(start = null, end = null) {
+  let url = '/api/data';
+  if (start && end) url += `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    sqlData = data;
+    document.getElementById('total-records').textContent = data.length;
+    renderDataTable();
+    renderDevices();
+    updateCharts(true);
+  } catch (err) { console.error('Fetch error:', err); }
+}
+
+// Render bảng
+function renderDataTable() {
+  const tbody = document.getElementById('data-table-body');
+  tbody.innerHTML = '';
+  sqlData.forEach(item => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td class="font-mono">${item.Id}</td>
+      <td class="font-mono">${item.device_id}</td>
+      <td>${item.label}</td>
+      <td class="text-right">${item.Voltage}</td>
+      <td class="text-right">${item.CurrentValue}</td>
+      <td class="text-right font-semibold">${item.Power}</td>
+      <td class="text-sm">${new Date(item.Timestamp).toLocaleString()}</td>
+      <td>${item.Status}</td>
+      <td>${item.label_pred||''}</td>
+      <td>${item.Power_pred||''}</td>
+      <td>${item.anomaly_flag||''}</td>
+    `;
+    tbody.appendChild(row);
+  });
+}
+
+// Render thiết bị
+function renderDevices() {
+  const uniqueDevices = [...new Set(sqlData.map(i=>i.device_id))];
+  document.getElementById('total-devices').textContent = uniqueDevices.length;
+
+  const avgPower = (sqlData.reduce((sum,i)=>sum+parseFloat(i.Power||0),0)/sqlData.length||0).toFixed(2);
+  const avgVoltage = (sqlData.reduce((sum,i)=>sum+parseFloat(i.Voltage||0),0)/sqlData.length||0).toFixed(2);
+  const avgCurrent = (sqlData.reduce((sum,i)=>sum+parseFloat(i.CurrentValue||0),0)/sqlData.length||0).toFixed(2);
+  document.getElementById('avg-power').textContent = avgPower+'W';
+  document.getElementById('avg-voltage').textContent = avgVoltage+'V';
+  document.getElementById('avg-current').textContent = avgCurrent+'A';
+}
+
+// Init charts
+function initCharts() {
+  const powerCtx = document.getElementById('powerChart').getContext('2d');
+  const voltageCtx = document.getElementById('voltageCurrentChart').getContext('2d');
+
+  powerChart = new Chart(powerCtx,{
+    type:'line',
+    data:{labels:[], datasets:[{label:'Công Suất (W)', data:[], borderColor:'#3B82F6', backgroundColor:'rgba(59,130,246,0.1)', fill:true}]},
+    options:{responsive:true, maintainAspectRatio:false, layout:{padding:{left:chartPaddingLeft}}}
+  });
+
+  voltageCurrentChart = new Chart(voltageCtx,{
+    type:'line',
+    data:{labels:[], datasets:[{label:'Điện Áp (V)', data:[], borderColor:'#8B5CF6'}, {label:'Dòng (A)', data:[], borderColor:'#F59E0B'}]},
+    options:{responsive:true, maintainAspectRatio:false, layout:{padding:{left:chartPaddingLeft}}}
+  });
+}
+
+// Update chart
+function updateCharts(autoScroll=false){
+  const displayTime = document.getElementById('displayTime').value;
+  const now = Date.now();
+  let filtered = sqlData.slice();
+
+  switch(displayTime){
+    case '5m': filtered=filtered.filter(d=>new Date(d.Timestamp).getTime()>now-5*60*1000); break;
+    case '10m': filtered=filtered.filter(d=>new Date(d.Timestamp).getTime()>now-10*60*1000); break;
+    case '15m': filtered=filtered.filter(d=>new Date(d.Timestamp).getTime()>now-15*60*1000); break;
+    case '30m': filtered=filtered.filter(d=>new Date(d.Timestamp).getTime()>now-30*60*1000); break;
+    case '1H': filtered=filtered.filter(d=>new Date(d.Timestamp).getTime()>now-60*60*1000); break;
+    case '3H': filtered=filtered.filter(d=>new Date(d.Timestamp).getTime()>now-3*60*60*1000); break;
+    case '6H': filtered=filtered.filter(d=>new Date(d.Timestamp).getTime()>now-6*60*60*1000); break;
+    case '12H': filtered=filtered.filter(d=>new Date(d.Timestamp).getTime()>now-12*60*60*1000); break;
+    case '24H': filtered=filtered.filter(d=>new Date(d.Timestamp).getTime()>now-24*60*60*1000); break;
+    case '7d': filtered=filtered.filter(d=>new Date(d.Timestamp).getTime()>now-7*24*60*60*1000); break;
+    case '30d': filtered=filtered.filter(d=>new Date(d.Timestamp).getTime()>now-30*24*60*60*1000); break;
+    case 'all': default: break;
+  }
+
+  const labels = filtered.map(i=>new Date(i.Timestamp).toLocaleString());
+  powerChart.data.labels = labels;
+  powerChart.data.datasets[0].data = filtered.map(i=>i.Power);
+  powerChart.update();
+
+  voltageCurrentChart.data.labels = labels;
+  voltageCurrentChart.data.datasets[0].data = filtered.map(i=>i.Voltage);
+  voltageCurrentChart.data.datasets[1].data = filtered.map(i=>i.CurrentValue);
+  voltageCurrentChart.update();
+
+  if(autoScroll){
+    document.querySelectorAll('.chart-container').forEach(div=>div.scrollLeft = div.scrollWidth);
+  }
+}
+
+// Search filter
+function filterData(){
+  const keyword = document.getElementById('search-input').value.toLowerCase();
+  const tbody = document.getElementById('data-table-body');
+  Array.from(tbody.children).forEach(row=>{
+    row.style.display = Array.from(row.children).some(td=>td.textContent.toLowerCase().includes(keyword)) ? '' : 'none';
+  });
+}
+
+// Refresh & auto-refresh
+function refreshData(){ fetchData(); }
+function setAutoRefresh(){
+  if(autoRefreshTimer) clearInterval(autoRefreshTimer);
+  const interval = parseInt(document.getElementById('refreshInterval').value);
+  autoRefreshTimer = setInterval(fetchData, interval);
+}
+
+// Init
+initCharts();
+fetchData();
+setAutoRefresh();
+</script>
+</body>
+</html>

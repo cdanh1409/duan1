@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bảng Điều Khiển Tiêu Thụ Điện - Dữ liệu SQL</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .chart-container { position: relative; height: 400px; width: 100%; }
+        .device-card { transition: all 0.3s ease; }
+        .device-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .sidebar { width: 280px; min-height: 100vh; }
+        .main-content { margin-left: 280px; min-height: 100vh; }
+        @media (max-width: 768px) { .sidebar { width: 100%; min-height: auto; } .main-content { margin-left: 0; } }
+        .table-container { max-height: 600px; overflow-y: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        th { background-color: #f9fafb; font-weight: 600; }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="flex">
+        <!-- Sidebar -->
+        <div class="sidebar bg-blue-900 text-white p-6 fixed left-0 top-0 h-screen">
+            <div class="mb-8">
+                <h1 class="text-2xl font-bold flex items-center">
+                    <i class="fas fa-database mr-3 text-yellow-400"></i>
+                    SQL Energy Monitor
+                </h1>
+                <p class="text-blue-200 text-sm mt-2">Dữ liệu từ [ESP32Data].[dbo].[Data]</p>
+            </div>
+            <nav class="space-y-2">
+                <a href="#dashboard" class="block py-2 px-4 rounded-lg bg-blue-800 hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-chart-line mr-3"></i>Bảng Điều Khiển
+                </a>
+                <a href="#devices" class="block py-2 px-4 rounded-lg hover:bg-blue-800 transition-colors">
+                    <i class="fas fa-microchip mr-3"></i>Quản Lý Thiết Bị
+                </a>
+                <a href="#data-table" class="block py-2 px-4 rounded-lg hover:bg-blue-800 transition-colors">
+                    <i class="fas fa-table mr-3"></i>Dữ Liệu SQL
+                </a>
+                <a href="#analytics" class="block py-2 px-4 rounded-lg hover:bg-blue-800 transition-colors">
+                    <i class="fas fa-chart-pie mr-3"></i>Phân Tích
+                </a>
+            </nav>
+            <div class="mt-8 pt-8 border-t border-blue-700">
+                <div class="bg-blue-800 p-4 rounded-lg">
+                    <h3 class="font-semibold text-blue-200">Tổng Số Bản Ghi</h3>
+                    <p class="text-2xl font-bold text-white" id="total-records">0</p>
+                    <p class="text-sm text-blue-200">Bảng [dbo].[Data]</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content flex-1 p-8">
+            <!-- Header -->
+            <div class="bg-white rounded-xl shadow-sm p-6 mb-8">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">Dữ Liệu từ SQL Server</h2>
+                        <p class="text-gray-600">Dữ liệu thời gian thực từ bảng [ESP32Data].[dbo].[Data]</p>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button onclick="refreshData()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                            <i class="fas fa-sync-alt mr-2"></i>Làm Mới
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white rounded-xl shadow-sm p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm">Tổng Thiết Bị</p>
+                            <p class="text-2xl font-bold text-gray-800" id="total-devices">0</p>
+                        </div>
+                        <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-microchip text-blue-600 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm">Công Suất Trung Bình</p>
+                            <p class="text-2xl font-bold text-gray-800" id="avg-power">0W</p>
+                        </div>
+                        <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-bolt text-green-600 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm">Điện Áp Trung Bình</p>
+                            <p class="text-2xl font-bold text-gray-800" id="avg-voltage">0V</p>
+                        </div>
+                        <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-bolt text-purple-600 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-gray-600 text-sm">Dòng Điện TB</p>
+                            <p class="text-2xl font-bold text-gray-800" id="avg-current">0A</p>
+                        </div>
+                        <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-bolt text-orange-600 text-xl"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <div class="bg-white rounded-xl shadow-sm p-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-6">Biểu Đồ Công Suất Theo Thời Gian</h3>
+                    <div class="chart-container">
+                        <canvas id="powerChart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm p-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-6">Biểu Đồ Điện Áp & Dòng Điện</h3>
+                    <div class="chart-container">
+                        <canvas id="voltageCurrentChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Table -->
+            <div id="data-table" class="bg-white rounded-xl shadow-sm p-6 mb-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-semibold text-gray-800">Dữ Liệu SQL - 1000 Bản Ghi Mới Nhất</h3>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Device ID</th>
+                                <th>Label</th>
+                                <th>Voltage (V)</th>
+                                <th>Current (A)</th>
+                                <th>Power (W)</th>
+                                <th>Timestamp</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="data-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let sqlData = [];
+        let powerChart, voltageCurrentChart;
+
+        async function fetchSQLData() {
+            try {
+                const response = await fetch('http://localhost:3000/api/data');
+                sqlData = await response.json();
+                document.getElementById('total-records').textContent = sqlData.length;
+                renderDevices();
+                renderDataTable();
+                updateCharts();
+            } catch (err) {
+                console.error('Lỗi khi fetch dữ liệu:', err);
+            }
+        }
+
+        function initCharts() {
+            const powerCtx = document.getElementById('powerChart').getContext('2d');
+            const voltageCurrentCtx = document.getElementById('voltageCurrentChart').getContext('2d');
+
+            powerChart = new Chart(powerCtx, {
+                type: 'line',
+                data: { labels: [], datasets: [{ label: 'Công Suất (W)', data: [], borderColor: '#3B82F6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            voltageCurrentChart = new Chart(voltageCurrentCtx, {
+                type: 'line',
+                data: { 
+                    labels: [], 
+                    datasets: [
+                        { label: 'Điện Áp (V)', data: [], borderColor: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.1)', yAxisID: 'y' },
+                        { label: 'Dòng Điện (A)', data: [], borderColor: '#EF4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', yAxisID: 'y1' }
+                    ] 
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Điện Áp (V)' } },
+                        y1: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'Dòng Điện (A)' }, grid: { drawOnChartArea: false } }
+                    }
+                }
+            });
+        }
+
+        function updateCharts() {
+            const timeLabels = Array.from(new Set(sqlData.map(item => new Date(item.Timestamp).toLocaleDateString('vi-VN')))).slice(-30);
+            const powerData = timeLabels.map(date => {
+                const dailyData = sqlData.filter(item => new Date(item.Timestamp).toLocaleDateString('vi-VN') === date);
+                return dailyData.reduce((sum, item) => sum + parseFloat(item.Power), 0) / dailyData.length;
+            });
+            const voltageData = timeLabels.map(date => {
+                const dailyData = sqlData.filter(item => new Date(item.Timestamp).toLocaleDateString('vi-VN') === date);
+                return dailyData.reduce((sum, item) => sum + parseFloat(item.Voltage), 0) / dailyData.length;
+            });
+            const currentData = timeLabels.map(date => {
+                const dailyData = sqlData.filter(item => new Date(item.Timestamp).toLocaleDateString('vi-VN') === date);
+                return dailyData.reduce((sum, item) => sum + parseFloat(item.CurrentValue), 0) / dailyData.length;
+            });
+
+            powerChart.data.labels = timeLabels;
+            powerChart.data.datasets[0].data = powerData;
+            powerChart.update();
+
+            voltageCurrentChart.data.labels = timeLabels;
+            voltageCurrentChart.data.datasets[0].data = voltageData;
+            voltageCurrentChart.data.datasets[1].data = currentData;
+            voltageCurrentChart.update();
+        }
+
+        function renderDataTable() {
+            const tbody = document.getElementById('data-table-body');
+            tbody.innerHTML = '';
+            sqlData.slice(-50).forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.Id}</td>
+                    <td>${item.device_id}</td>
+                    <td>${item.label}</td>
+                    <td class="text-right">${item.Voltage}</td>
+                    <td class="text-right">${item.CurrentValue}</td>
+                    <td class="text-right">${item.Power}</td>
+                    <td>${new Date(item.Timestamp).toLocaleString('vi-VN')}</td>
+                    <td>${item.Status}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function renderDevices() {
+            const uniqueDevices = [...new Set(sqlData.map(item => item.device_id))];
+            document.getElementById('total-devices').textContent = uniqueDevices.length;
+            const avgPower = (sqlData.reduce((sum, item) => sum + parseFloat(item.Power),0)/sqlData.length).toFixed(2);
+            const avgVoltage = (sqlData.reduce((sum, item) => sum + parseFloat(item.Voltage),0)/sqlData.length).toFixed(2);
+            const avgCurrent = (sqlData.reduce((sum, item) => sum + parseFloat(item.CurrentValue),0)/sqlData.length).toFixed(2);
+            document.getElementById('avg-power').textContent = avgPower + 'W';
+            document.getElementById('avg-voltage').textContent = avgVoltage + 'V';
+            document.getElementById('avg-current').textContent = avgCurrent + 'A';
+        }
+
+        function refreshData() { fetchSQLData(); }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initCharts();
+            fetchSQLData();
+        });
+    </script>
+</body>
+</html>

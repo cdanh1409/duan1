@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Form đăng ký thông tin sinh viên</title>
+</head>
+<body>
+    <h1>Đăng ký thông tin sinh viên</h1>
+
+    <form action="#" method="post">
+        <!-- Tên đăng nhập -->
+        <label for="user">Tên đăng nhập:</label>
+        <input type="text" id="user" name="user" required><br><br>
+
+        <!-- Mã số sinh viên -->
+        <label for="MSSV">Mã số sinh viên:</label>
+        <input type="text" id="MSSV" name="MSSV" required><br><br>
+
+        <!-- Email -->
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" required><br><br>
+
+        <!-- Mật khẩu -->
+        <label for="pass">Mật khẩu:</label>
+        <input type="password" id="pass" name="pass" required><br><br>
+
+        <!-- Giới tính -->
+        <label>Giới tính:</label><br>
+        <input type="radio" id="nam" name="gender" value="nam" required>
+        <label for="nam">Nam</label>
+        <input type="radio" id="nu" name="gender" value="nu">
+        <label for="nu">Nữ</label>
+        <input type="radio" id="khac" name="gender" value="khac">
+        <label for="khac">Khác</label><br><br>
+
+        <!-- Ngành học -->
+        <label for="nganh">Ngành học:</label>
+        <select id="nganh" name="nganh" required>
+            <option value="">-- Chọn ngành --</option>
+            <option value="cntt">Công nghệ thông tin</option>
+            <option value="kinhte">Kinh tế</option>
+            <option value="ngonngu">Ngôn ngữ Anh</option>
+        </select><br><br>
+
+        <!-- Sở thích -->
+        <label>Sở thích:</label><br>
+        <input type="checkbox" id="doc_sach" name="sothich" value="doc_sach">
+        <label for="doc_sach">Đọc sách</label>
+        <input type="checkbox" id="game" name="sothich" value="game">
+        <label for="game">Chơi game</label>
+        <input type="checkbox" id="the_thao" name="sothich" value="the_thao">
+        <label for="the_thao">Thể thao</label>
+        <input type="checkbox" id="dulich" name="sothich" value="dulich">
+        <label for="dulich">Du lịch</label><br><br>
+
+        <!-- Ngày sinh -->
+        <label for="ngaysinh">Ngày sinh:</label>
+        <input type="date" id="ngaysinh" name="ngaysinh" required><br><br>
+
+        <!-- Avatar -->
+        <label for="avatar">Ảnh đại diện:</label>
+        <input type="file" id="avatar" name="avatar" accept="image/*" required><br><br>
+
+        <!-- Nút -->
+        <button type="submit">Gửi</button>
+        <button type="reset">Xóa</button>
+
+        <h3>
+            chào mừng bạn đến với trang đăng ký thông tin sinh viên
+        </h3>
+    </form>
+</body>
+</html>

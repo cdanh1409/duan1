@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Đọc CSV bằng HTML + JS</title>
+</head>
+
+<body>
+  <h2>Tải file CSV và hiển thị thành bảng</h2>
+
+  <!-- Upload file CSV -->
+  <input type="file" id="csvFile" accept=".csv" />
+
+  <!-- Nơi hiển thị bảng -->
+  <div id="output"></div>
+
+  <script>
+    // Bắt sự kiện khi người dùng chọn file
+    document.getElementById("csvFile").addEventListener("change", function (e) {
+      const file = e.target.files[0];   // Lấy file được chọn
+      if (!file) return;                // Nếu không chọn file thì dừng
+
+      const reader = new FileReader();  // Tạo đối tượng đọc file
+      reader.onload = function (event) {
+        const text = event.target.result;          // Nội dung file CSV
+        const rows = text.split("\n")              // Tách từng dòng
+          .map(row => row.split(",")); // Mỗi dòng tách theo dấu phẩy
+
+        // Bắt đầu tạo bảng HTML
+        let table = "<table>";
+
+        // Duyệt từng dòng (row)
+        rows.forEach((row, index) => {
+          table += "<tr>";
+          // Duyệt từng ô (cell)
+          row.forEach(cell => {
+            if (index === 0) {
+              // Dòng đầu tiên = tiêu đề bảng
+              table += `<th>${cell.trim()}</th>`;
+            } else {
+              // Các dòng khác = dữ liệu
+              table += `<td>${cell.trim()}</td>`;
+            }
+          });
+          table += "</tr>";
+        });
+
+        table += "</table>";
+
+        // Hiển thị bảng vào thẻ <div id="output">
+        document.getElementById("output").innerHTML = table;
+      };
+
+      // Đọc file dưới dạng text
+      reader.readAsText(file);
+    });
+  </script>
+  <h1>bây giờ đây là web up load CSV </h1>
+  <a href="myskill.html">đây là trang my skill</a><br>
+  <a href="hoclaptrinh.html">đây là trang học lập trình</a><br>
+  <a href="webnuochoa.html">đây là web bán đồ</a><br>
+</body>
+
+</html>
